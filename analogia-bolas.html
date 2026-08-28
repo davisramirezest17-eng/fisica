@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analogía de las bolas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#080b14;
+    --panel:#0f1626;
+    --track:#1c2740;
+    --gold:#f2b33d;
+    --cyan:#38bdf8;
+    --white-ball:#f5f4ef;
+    --black-ball:#121317;
+    --gray:#4d5668;
+    --text:#e7eaf2;
+    --muted:#7b869c;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:radial-gradient(ellipse at 50% 0%, #10182c 0%, var(--bg) 60%);
+    font-family:'Space Grotesk', sans-serif;
+    color:var(--text);
+    padding:24px;
+  }
+  .app{
+    width:100%;
+    max-width:760px;
+    background:var(--panel);
+    border:1px solid #1b2540;
+    border-radius:20px;
+    padding:28px 28px 24px;
+    box-shadow:0 30px 80px -30px rgba(0,0,0,.6);
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin:0 0 18px;
+  }
+  .controls{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  .mode-toggle{
+    display:inline-flex;
+    background:#0a0f1c;
+    border:1px solid #1b2540;
+    border-radius:999px;
+    padding:4px;
+    gap:2px;
+  }
+  .mode-btn{
+    border:none;
+    background:transparent;
+    color:var(--muted);
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:13.5px;
+    padding:8px 16px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:background .2s, color .2s;
+  }
+  .mode-btn.active{
+    background:var(--cyan);
+    color:#04121c;
+  }
+  .actions{display:flex; gap:8px;}
+  .actions button{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:13.5px;
+    border-radius:999px;
+    padding:8px 18px;
+    border:1px solid #263252;
+    background:#0a0f1c;
+    color:var(--text);
+    cursor:pointer;
+    transition:border-color .2s, transform .15s;
+  }
+  .actions button:hover{border-color:var(--gold);}
+  .actions button:active{transform:scale(.96);}
+  .actions button:disabled{opacity:.35; cursor:not-allowed;}
+
+  .stage{
+    position:relative;
+    height:220px;
+    margin:28px 0 6px;
+  }
+  .track{
+    position:absolute;
+    top:50%; left:8%; right:8%;
+    height:2px;
+    background:linear-gradient(90deg, transparent, var(--track) 15%, var(--track) 85%, transparent);
+    transform:translateY(-50%);
+  }
+  .dock{
+    position:absolute;
+    top:50%;
+    width:78px; height:78px;
+    border:2px dashed #263252;
+    border-radius:50%;
+    transform:translate(-50%,-50%);
+    opacity:.5;
+  }
+  .dock-left{left:12%;}
+  .dock-right{left:88%;}
+
+  .source{
+    position:absolute;
+    top:50%; left:50%;
+    width:14px; height:14px;
+    background:var(--gold);
+    transform:translate(-50%,-50%) rotate(45deg);
+    border-radius:3px;
+    box-shadow:0 0 18px 4px rgba(242,179,61,.5);
+  }
+
+  .ball{
+    --tx:0px;
+    position:absolute;
+    top:50%; left:50%;
+    width:60px; height:60px;
+    border-radius:50%;
+    transform:translate(-50%,-50%) translateX(var(--tx));
+    transition:--tx 1.1s cubic-bezier(.2,.8,.2,1), background .25s, box-shadow .3s;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'JetBrains Mono', monospace;
+    font-size:20px;
+    font-weight:500;
+    color:#0a0f1c;
+    background:var(--gray);
+    z-index:2;
+  }
+  @property --tx{
+    syntax:'<length>';
+    inherits:false;
+    initial-value:0px;
+  }
+
+  .ball.unknown{
+    animation:breathe 1.8s ease-in-out infinite;
+    box-shadow:0 0 0 0 rgba(56,189,248,0);
+  }
+  .ball.hidden{
+    background:#3a4152;
+    font-size:22px;
+  }
+  .ball.white{background:var(--white-ball); box-shadow:0 0 22px 2px rgba(245,244,239,.25);}
+  .ball.black{background:var(--black-ball); box-shadow:0 0 22px 2px rgba(0,0,0,.5); border:1px solid #2a2d36;}
+
+  .ball.observable{cursor:pointer;}
+  .ball.observable:hover{box-shadow:0 0 0 6px rgba(56,189,248,.12);}
+
+  .ball.collapsing{animation:collapsePop .5s ease-out;}
+  .ball.collapsing::after{
+    content:'';
+    position:absolute;
+    inset:-6px;
+    border-radius:50%;
+    border:2px solid var(--gold);
+    animation:ring .6s ease-out forwards;
+  }
+
+  @keyframes breathe{
+    0%,100%{opacity:.82; transform:translate(-50%,-50%) translateX(var(--tx)) scale(.96);}
+    50%{opacity:1; transform:translate(-50%,-50%) translateX(var(--tx)) scale(1.04);}
+  }
+  @keyframes collapsePop{
+    0%{transform:translate(-50%,-50%) translateX(var(--tx)) scale(1);}
+    45%{transform:translate(-50%,-50%) translateX(var(--tx)) scale(1.22);}
+    100%{transform:translate(-50%,-50%) translateX(var(--tx)) scale(1);}
+  }
+  @keyframes ring{
+    0%{opacity:1; transform:scale(1);}
+    100%{opacity:0; transform:scale(2.1);}
+  }
+
+  .hint{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12.5px;
+    color:var(--muted);
+    text-align:center;
+    min-height:18px;
+    margin:6px 0 0;
+    transition:color .3s;
+  }
+  .hint.highlight{color:var(--gold);}
+
+  @media (max-width:480px){
+    .controls{flex-direction:column; align-items:stretch;}
+    .actions{justify-content:center;}
+    .dock-left{left:16%;} .dock-right{left:84%;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <p class="eyebrow">Analogía · pares entrelazados</p>
+
+  <div class="controls">
+    <div class="mode-toggle">
+      <button class="mode-btn active" data-mode="clasico">Clásico</button>
+      <button class="mode-btn" data-mode="cuantico">Cuántico</button>
+    </div>
+    <div class="actions">
+      <button id="launchBtn">Lanzar</button>
+      <button id="resetBtn">Reiniciar</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="dock dock-left"></div>
+    <div class="dock dock-right"></div>
+    <div class="track"></div>
+    <div class="source"></div>
+    <div class="ball" id="ballLeft"></div>
+    <div class="ball" id="ballRight"></div>
+  </div>
+
+  <p class="hint" id="hint">Presiona «Lanzar» para enviar las dos bolas en direcciones opuestas.</p>
+</div>
+
+<script>
+  const ballLeft = document.getElementById('ballLeft');
+  const ballRight = document.getElementById('ballRight');
+  const hint = document.getElementById('hint');
+  const launchBtn = document.getElementById('launchBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const modeBtns = document.querySelectorAll('.mode-btn');
+
+  let mode = 'clasico';
+  let launched = false;
+  let observed = false;
+  let pair = null;
+
+  const REACH = 260;
+
+  function setHint(text, gold=false){
+    hint.textContent = text;
+    hint.classList.toggle('highlight', gold);
+  }
+
+  function clearBall(el){
+    el.classList.remove('unknown','hidden','white','black','observable','collapsing');
+    el.textContent = '';
+    el.style.setProperty('--tx','0px');
+  }
+
+  function resetStage(){
+    launched = false;
+    observed = false;
+    pair = null;
+    clearBall(ballLeft);
+    clearBall(ballRight);
+    launchBtn.disabled = false;
+    if(mode === 'cuantico'){
+      setHint('Presiona «Lanzar»: viajarán sin color definido.');
+    } else {
+      setHint('Presiona «Lanzar»: viajarán ya con un color fijo, solo oculto.');
+    }
+  }
+
+  function launchBalls(){
+    resetStage();
+    launched = true;
+    pair = Math.random() < 0.5 ? {left:'white', right:'black'} : {left:'black', right:'white'};
+
+    if(mode === 'cuantico'){
+      ballLeft.classList.add('unknown');
+      ballRight.classList.add('unknown');
+      ballLeft.textContent = '?';
+      ballRight.textContent = '?';
+    } else {
+      ballLeft.classList.add('hidden');
+      ballRight.classList.add('hidden');
+      ballLeft.textContent = '●';
+      ballRight.textContent = '●';
+    }
+
+    requestAnimationFrame(() => {
+      ballLeft.style.setProperty('--tx', `-${REACH}px`);
+      ballRight.style.setProperty('--tx', `${REACH}px`);
+    });
+
+    setTimeout(() => {
+      ballLeft.classList.add('observable');
+      ballRight.classList.add('observable');
+      if(mode === 'cuantico'){
+        setHint('Toca una bola para observarla.');
+      } else {
+        setHint('Toca una bola para abrirla.');
+      }
+    }, 1150);
+  }
+
+  function observe(){
+    if(!launched || observed || !pair) return;
+    observed = true;
+    ballLeft.classList.remove('observable');
+    ballRight.classList.remove('observable');
+
+    if(mode === 'cuantico'){
+      ballLeft.classList.add('collapsing');
+      ballRight.classList.add('collapsing');
+      setTimeout(() => {
+        ballLeft.classList.remove('unknown');
+        ballRight.classList.remove('unknown');
+        ballLeft.textContent = '';
+        ballRight.textContent = '';
+        ballLeft.classList.add(pair.left);
+        ballRight.classList.add(pair.right);
+      }, 90);
+      setTimeout(() => {
+        ballLeft.classList.remove('collapsing');
+        ballRight.classList.remove('collapsing');
+      }, 650);
+      setHint('Ninguna tenía color hasta este instante — ambas lo obtienen a la vez.', true);
+    } else {
+      ballLeft.classList.remove('hidden');
+      ballRight.classList.remove('hidden');
+      ballLeft.textContent = '';
+      ballRight.textContent = '';
+      ballLeft.classList.add(pair.left);
+      ballRight.classList.add(pair.right);
+      setHint('El color ya estaba fijado desde el principio; solo estaba oculto.');
+    }
+  }
+
+  ballLeft.addEventListener('click', observe);
+  ballRight.addEventListener('click', observe);
+  launchBtn.addEventListener('click', launchBalls);
+  resetBtn.addEventListener('click', resetStage);
+
+  modeBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      modeBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      mode = btn.dataset.mode;
+      resetStage();
+    });
+  });
+
+  resetStage();
+</script>
+</body>
+</html>
